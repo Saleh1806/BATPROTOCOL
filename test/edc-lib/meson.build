@@ -66,3 +66,8 @@ platform_check = shared_library('platform-check', common + ['platform-check.cpp'
   dependencies: deps + [boost_dep, intervalset_dep, nlohmann_json_dep],
   install: true,
 )
+
+statistic-easy = shared_library('statistic-easy', common + ['statistic-easy.cpp'],
+  dependencies: deps + [boost_dep, intervalset_dep, nlohmann_json_dep],
+  install: true,
+)
