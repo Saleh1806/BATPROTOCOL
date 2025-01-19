@@ -151,8 +151,76 @@ uint8_t batsim_edc_take_decisions(
     }
 
     // Scheduling logic remains the same
-    if (need_scheduling) {
-        // Existing scheduling logic here...
+        if (need_scheduling) {
+        ::Job* priority_job = nullptr;
+        uint32_t nb_available_hosts_at_priority_job_start = 0;
+        float priority_job_start_time = -1;
+
+        // First traversal, done until a job cannot be executed right now and is set as the priority job
+        // (or until all jobs have been executed)
+        auto job_it = job_queue.begin();
+        for (; job_it != job_queue.end(); ) {
+            auto job = *job_it;
+            if (job->nb_hosts <= nb_available_hosts) {
+                running_jobs[job->id] = *job_it;
+                job->maximum_finish_time = parsed->now() + job->walltime;
+                job->alloc = available_hosts.left(job->nb_hosts);
+                mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
+                available_hosts -= job->alloc;
+                nb_available_hosts -= job->nb_hosts;
+
+                job_it = job_queue.erase(job_it);
+            }
+            else
+            {
+                priority_job = *job_it;
+                ++job_it;
+
+                // compute when the priority job can start, and the number of available machines at this time
+                std::vector<::Job*> running_jobs_asc_maximum_finish_time;
+                running_jobs_asc_maximum_finish_time.reserve(running_jobs.size());
+                for (const auto & it : running_jobs)
+                    running_jobs_asc_maximum_finish_time.push_back(it.second);
+                std::sort(running_jobs_asc_maximum_finish_time.begin(), running_jobs_asc_maximum_finish_time.end(), ascending_max_finish_time_job_order);
+
+                nb_available_hosts_at_priority_job_start = nb_available_hosts;
+                for (const auto & job : running_jobs_asc_maximum_finish_time) {
+                    nb_available_hosts_at_priority_job_start += job->nb_hosts;
+                    if (nb_available_hosts_at_priority_job_start >= priority_job->nb_hosts) {
+                        nb_available_hosts_at_priority_job_start -= priority_job->nb_hosts;
+                        priority_job_start_time = job->maximum_finish_time;
+                        break;
+                    }
+                }
+
+                break;
+            }
+        }
+
+        // Continue traversal to backfill jobs
+        for (; job_it != job_queue.end(); ) {
+            auto job = *job_it;
+            // should the job be backfilled?
+            float job_finish_time = parsed->now() + job->walltime;
+            if (job->nb_hosts <= nb_available_hosts && // enough resources now?
+                (job->nb_hosts <= nb_available_hosts_at_priority_job_start || job_finish_time <= priority_job_start_time)) {  // does not directly hinder the priority job?
+                running_jobs[job->id] = *job_it;
+                job->maximum_finish_time = job_finish_time;
+                job->alloc = available_hosts.left(job->nb_hosts);
+                mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
+                available_hosts -= job->alloc;
+                nb_available_hosts -= job->nb_hosts;
+
+                if (job_finish_time > priority_job_start_time)
+                nb_available_hosts_at_priority_job_start -= job->nb_hosts;
+
+                job_it = job_queue.erase(job_it);
+            }
+            else if (nb_available_hosts == 0)
+                break;
+            else
+                ++job_it;
+        }
     }
 
     // Stop probes when all jobs are done
