@@ -2,6 +2,7 @@
 #include <list>
 #include <string>
 #include <unordered_map>
+#include <fstream> // Include for file handling
 
 #include <batprotocol.hpp>
 #include <intervalset.hpp>
@@ -34,6 +35,19 @@ std::vector<double> host_energy;
 bool probes_running = false;
 double last_call_time = -1;
 double epsilon = 1e-3;
+
+// Function to save energy data to a CSV file
+void save_energy_to_csv(const std::vector<double>& energy_data, const std::string& filename) {
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        for (const auto& energy : energy_data) {
+            file << energy << "\n";
+        }
+        file.close();
+    } else {
+        printf("Unable to open file: %s\n", filename.c_str());
+    }
+}
 
 uint8_t batsim_edc_init(const uint8_t * data, uint32_t size, uint32_t flags)
 {
@@ -229,6 +243,9 @@ uint8_t batsim_edc_take_decisions(
         mb->add_stop_probe("hosts-agg");
         probes_running = false;
     }
+
+    // Save energy data to CSV
+    save_energy_to_csv(host_energy, "energy_data.csv");
 
     mb->finish_message(parsed->now());
     serialize_message(*mb, !format_binary, const_cast<const uint8_t **>(decisions), decisions_size);
