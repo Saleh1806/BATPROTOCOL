@@ -88,6 +88,7 @@
               pkgs.python3Packages.pandas
               pkgs.python3Packages.pytest
               pkgs.python3Packages.pytest-html
+              pkgs.python3Packages.matplotlib
               pkgs.gdb
               pkgs.cgdb
             ];
