@@ -36,6 +36,10 @@ bool probes_running = false;
 double last_call_time = -1;
 double epsilon = 1e-3;
 
+// Fonction pour trier les jobs par leur temps maximum de fin
+bool ascending_max_finish_time_job_order(const ::Job* a, const ::Job* b) {
+    return a->maximum_finish_time < b->maximum_finish_time;
+}
 // Function to save energy data to a CSV file
 void save_energy_to_csv(const std::vector<double>& energy_data, const std::string& filename) {
     std::ofstream file(filename);
