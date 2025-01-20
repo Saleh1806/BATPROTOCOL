@@ -40,6 +40,7 @@ double epsilon = 1e-3;
 bool ascending_max_finish_time_job_order(const ::Job* a, const ::Job* b) {
     return a->maximum_finish_time < b->maximum_finish_time;
 }
+
 // Function to save energy data to a CSV file
 void save_energy_to_csv(const std::vector<double>& energy_data, const std::string& filename) {
     std::ofstream file(filename);
@@ -166,10 +167,13 @@ uint8_t batsim_edc_take_decisions(
         } break;
         default: break;
         }
+
+        // Save energy data to CSV at each event
+        save_energy_to_csv(host_energy, "energy_data.csv");
     }
 
     // Scheduling logic remains the same
-        if (need_scheduling) {
+    if (need_scheduling) {
         ::Job* priority_job = nullptr;
         uint32_t nb_available_hosts_at_priority_job_start = 0;
         float priority_job_start_time = -1;
@@ -230,7 +234,7 @@ uint8_t batsim_edc_take_decisions(
                 nb_available_hosts -= job->nb_hosts;
 
                 if (job_finish_time > priority_job_start_time)
-                nb_available_hosts_at_priority_job_start -= job->nb_hosts;
+                    nb_available_hosts_at_priority_job_start -= job->nb_hosts;
 
                 job_it = job_queue.erase(job_it);
             }
@@ -247,9 +251,6 @@ uint8_t batsim_edc_take_decisions(
         mb->add_stop_probe("hosts-agg");
         probes_running = false;
     }
-
-    // Save energy data to CSV
-    save_energy_to_csv(host_energy, "energy_data.csv");
 
     mb->finish_message(parsed->now());
     serialize_message(*mb, !format_binary, const_cast<const uint8_t **>(decisions), decisions_size);
