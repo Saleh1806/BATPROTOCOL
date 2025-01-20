@@ -41,18 +41,6 @@ bool ascending_max_finish_time_job_order(const ::Job* a, const ::Job* b) {
     return a->maximum_finish_time < b->maximum_finish_time;
 }
 
-// Function to save energy data to a CSV file
-void save_energy_to_csv(const std::vector<double>& energy_data, const std::string& filename) {
-    std::ofstream file(filename);
-    if (file.is_open()) {
-        for (const auto& energy : energy_data) {
-            file << energy << "\n";
-        }
-        file.close();
-    } else {
-        printf("Unable to open file: %s\n", filename.c_str());
-    }
-}
 
 uint8_t batsim_edc_init(const uint8_t * data, uint32_t size, uint32_t flags)
 {
@@ -79,7 +67,21 @@ uint8_t batsim_edc_deinit()
     host_energy.clear();
     return 0;
 }
-
+// Function to save energy data to a CSV file with event type and timestamp
+void save_energy_to_csv(const std::vector<double>& energy_data, const std::string& filename, const std::string& event_type, double timestamp) {
+    std::ofstream file(filename, std::ios_base::app); // Append mode
+    if (file.is_open()) {
+        file << "Event: " << event_type << ", Timestamp: " << timestamp << "\n";
+        for (const auto& energy : energy_data) {
+            if (energy != 0.0) {
+                file << energy << "\n";
+            }
+        }
+        file.close();
+    } else {
+        printf("Unable to open file: %s\n", filename.c_str());
+    }
+}
 uint8_t batsim_edc_take_decisions(
     const uint8_t * what_happened,
     uint32_t what_happened_size,
@@ -95,12 +97,15 @@ uint8_t batsim_edc_take_decisions(
     auto nb_events = parsed->events()->size();
     for (unsigned int i = 0; i < nb_events; ++i) {
         auto event = (*parsed->events())[i];
+        std::string event_type;
         switch (event->event_type())
         {
         case fb::Event_BatsimHelloEvent: {
+            event_type = "BatsimHelloEvent";
             mb->add_edc_hello("easy", "0.1.0");
         } break;
         case fb::Event_SimulationBeginsEvent: {
+            event_type = "SimulationBeginsEvent";
             auto simu_begins = event->event_as_SimulationBeginsEvent();
             platform_nb_hosts = simu_begins->computation_host_number();
             nb_available_hosts = platform_nb_hosts;
@@ -121,6 +126,7 @@ uint8_t batsim_edc_take_decisions(
             probes_running = true;
         } break;
         case fb::Event_JobSubmittedEvent: {
+            event_type = "JobSubmittedEvent";
             ::Job job{
                 event->event_as_JobSubmittedEvent()->job_id()->str(),
                 event->event_as_JobSubmittedEvent()->job()->resource_request(),
@@ -139,6 +145,7 @@ uint8_t batsim_edc_take_decisions(
             }
         } break;
         case fb::Event_ProbeDataEmittedEvent: {
+            event_type = "ProbeDataEmittedEvent";
             auto e = event->event_as_ProbeDataEmittedEvent();
             if (e->probe_id()->str() == "hosts-vec") {
                 auto data = e->data_as_VectorialProbeData()->data();
@@ -152,8 +159,12 @@ uint8_t batsim_edc_take_decisions(
             }
 
             new_probe_call_time = event->timestamp();
+
+            // Save energy data to CSV for ProbeDataEmittedEvent
+            save_energy_to_csv(host_energy, "energy_data.csv", event_type, parsed->now());
         } break;
         case fb::Event_JobCompletedEvent: {
+            event_type = "JobCompletedEvent";
             need_scheduling = true;
 
             auto job_id = event->event_as_JobCompletedEvent()->job_id()->str();
@@ -165,11 +176,10 @@ uint8_t batsim_edc_take_decisions(
             delete job;
             running_jobs.erase(job_it);
         } break;
-        default: break;
+        default: {
+            event_type = "UnknownEvent";
+        } break;
         }
-
-        // Save energy data to CSV at each event
-        save_energy_to_csv(host_energy, "energy_data.csv");
     }
 
     // Scheduling logic remains the same
