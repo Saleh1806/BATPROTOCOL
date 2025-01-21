@@ -147,34 +147,60 @@ uint8_t batsim_edc_take_decisions(
         case fb::Event_ProbeDataEmittedEvent: {
             event_type = "ProbeDataEmittedEvent";
             auto e = event->event_as_ProbeDataEmittedEvent();
+
+            // Calcul des limites d'augmentation d'énergie par hôte
             double per_host_minimum_energy_increase = (event->timestamp() - last_call_time) * min_power;
             double per_host_maximum_energy_increase = (event->timestamp() - last_call_time) * max_power;
+
             if (e->probe_id()->str() == "hosts-vec") {
                 auto data = e->data_as_VectorialProbeData()->data();
                 if (data && data->size() == platform_nb_hosts) {
                     for (uint32_t i = 0; i < platform_nb_hosts; ++i) {
+                        double host_energy_diff = data->Get(i) - host_energy[i];
+
+                        // Vérification de la cohérence énergétique par hôte
+                        if (last_call_time != -1 && (
+                            (host_energy_diff + epsilon < per_host_minimum_energy_increase) ||
+                            (host_energy_diff - epsilon > per_host_maximum_energy_increase))) {
+                            char err_cstr[512];
+                            snprintf(err_cstr, sizeof(err_cstr), 
+                                "probe 'hosts-vec' sent an invalid vectorial data: "
+                                "host %u's energy increased by %.6f while it should be in the [%.6f, %.6f] range (tested with epsilon=%.6f)",
+                                i, host_energy_diff,
+                                per_host_minimum_energy_increase, per_host_maximum_energy_increase,
+                                epsilon);
+                            throw std::runtime_error(err_cstr);
+                        }
+
+                        // Mise à jour de l'énergie mesurée pour l'hôte
                         host_energy[i] = data->Get(i);
                     }
+                } else {
+                    throw std::runtime_error("probe 'hosts-vec' sent an invalid vectorial data: empty or unexpected number of elements");
                 }
             } else if (e->probe_id()->str() == "hosts-agg") {
                 all_hosts_energy = e->data_as_AggregatedProbeData()->data();
             }
 
             new_probe_call_time = event->timestamp();
+
+            // Calcul de la somme des énergies par hôte
             double sum_host_energy = 0.0;
             for (const auto& energy : host_energy) {
                 sum_host_energy += energy;
-                }
+            }
 
+            // Vérification de la cohérence énergétique globale
             double diff = std::abs(sum_host_energy - all_hosts_energy);
             if (diff > epsilon) {
-            printf("Inconsistent energy data detected: Vectorial sum = %.6f, Aggregated = %.6f, Difference = %.6f\n",
-               sum_host_energy, all_hosts_energy, diff);
-                }
+                printf("Inconsistent energy data detected: Vectorial sum = %.6f, Aggregated = %.6f, Difference = %.6f\n",
+                    sum_host_energy, all_hosts_energy, diff);
+            }
 
-            // Save energy data to CSV for ProbeDataEmittedEvent
+            // Sauvegarde des données d'énergie pour ce timestamp
             save_energy_to_csv(host_energy, "energy_data.csv", event_type, parsed->now());
         } break;
+
         case fb::Event_JobCompletedEvent: {
             event_type = "JobCompletedEvent";
             need_scheduling = true;
