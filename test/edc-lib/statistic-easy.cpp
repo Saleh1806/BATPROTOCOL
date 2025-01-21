@@ -159,6 +159,16 @@ uint8_t batsim_edc_take_decisions(
             }
 
             new_probe_call_time = event->timestamp();
+            double sum_host_energy = 0.0;
+            for (const auto& energy : host_energy) {
+                sum_host_energy += energy;
+                }
+
+            double diff = std::abs(sum_host_energy - all_hosts_energy);
+            if (diff > epsilon) {
+            printf("Inconsistent energy data detected: Vectorial sum = %.6f, Aggregated = %.6f, Difference = %.6f\n",
+               sum_host_energy, all_hosts_energy, diff);
+                }
 
             // Save energy data to CSV for ProbeDataEmittedEvent
             save_energy_to_csv(host_energy, "energy_data.csv", event_type, parsed->now());
