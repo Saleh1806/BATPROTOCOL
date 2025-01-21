@@ -35,6 +35,8 @@ std::vector<double> host_energy;
 bool probes_running = false;
 double last_call_time = -1;
 double epsilon = 1e-3;
+double min_power = 95.0;
+double max_power = 190.738;
 
 // Fonction pour trier les jobs par leur temps maximum de fin
 bool ascending_max_finish_time_job_order(const ::Job* a, const ::Job* b) {
