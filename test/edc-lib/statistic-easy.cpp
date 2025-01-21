@@ -147,6 +147,8 @@ uint8_t batsim_edc_take_decisions(
         case fb::Event_ProbeDataEmittedEvent: {
             event_type = "ProbeDataEmittedEvent";
             auto e = event->event_as_ProbeDataEmittedEvent();
+            double per_host_minimum_energy_increase = (event->timestamp() - last_call_time) * min_power;
+            double per_host_maximum_energy_increase = (event->timestamp() - last_call_time) * max_power;
             if (e->probe_id()->str() == "hosts-vec") {
                 auto data = e->data_as_VectorialProbeData()->data();
                 if (data && data->size() == platform_nb_hosts) {
