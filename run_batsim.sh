@@ -12,7 +12,7 @@ PLATFORM_FILE="./platforms/$1"
 WORKLOAD_FILE="./workloads/$2"
 
 # Définir les variables nécessaires
-LIBRARY_PATH="$EDC_LD_LIBRARY_PATH/libprobe-energy.so"
+LIBRARY_PATH="$EDC_LD_LIBRARY_PATH/libstatistic-easy.so"
 EXPE_OUT_DIR="/tmp/expe-out/out"
 OUTPUT_CSV="energy_data.csv"  # Fichier généré par Batsim
 PYTHON_SCRIPT="histogramme.py"
