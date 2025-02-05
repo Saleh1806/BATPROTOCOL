@@ -112,6 +112,11 @@ std::string behavior = "unset";
 bool ascending_max_finish_time_job_order(const LocalJob *a, const LocalJob *b) {
     return a->maximum_finish_time < b->maximum_finish_time;
 }
+bool ascending_power_consumption_job_order(const LocalJob *a, const LocalJob *b) {
+    double power_a = a->power_distribution.calculate_average_power();
+    double power_b = b->power_distribution.calculate_average_power();
+    return power_a < power_b;
+}
 
 void initialize_distributions(double interval_step, uint32_t num_intervals) {
     per_host_distributions.resize(platform_nb_hosts);
@@ -119,7 +124,40 @@ void initialize_distributions(double interval_step, uint32_t num_intervals) {
         distribution.initialize(interval_step, num_intervals);
     }
 }
+double calculate_running_hosts_average_power() {
+    double total_power = 0.0;
+    uint32_t active_hosts = 0;
 
+    for (const auto& [job_id, job] : running_jobs) {
+        
+        std::string alloc_str = job->alloc.to_string_hyphen();
+        std::vector<std::string> intervals;
+        std::stringstream ss(alloc_str);
+        std::string interval;
+
+        // Split the string into individual intervals using commas
+        while (std::getline(ss, interval, ',')) {
+            intervals.push_back(interval);
+        }
+
+        // Process each interval to extract start and end hosts
+        for (const auto& interval_str : intervals) {
+            size_t hyphen_pos = interval_str.find('-');
+            if (hyphen_pos != std::string::npos) {
+                uint32_t start = std::stoul(interval_str.substr(0, hyphen_pos));
+                uint32_t end = std::stoul(interval_str.substr(hyphen_pos + 1));
+
+                // Iterate through each host in the interval
+                for (uint32_t host = start; host <= end; ++host) {
+                    total_power += per_host_distributions[host].calculate_average_power();
+                    active_hosts++;
+                }
+            }
+        }
+    }
+
+    return (active_hosts == 0) ? 0.0 : (total_power / active_hosts);
+}
 uint8_t batsim_edc_init(const uint8_t *data, uint32_t size, uint32_t flags) {
     format_binary = ((flags & BATSIM_EDC_FORMAT_BINARY) != 0);
     if ((flags & (BATSIM_EDC_FORMAT_BINARY | BATSIM_EDC_FORMAT_JSON)) != flags) {
@@ -260,7 +298,7 @@ uint8_t batsim_edc_take_decisions(
                     {}
                 };
 
-                job->power_distribution.initialize(10.0, 20); // Initialisation de la distribution de puissance par tâche
+                job->power_distribution.initialize(100.0, 20); // Initialisation de la distribution de puissance par tâche
 
                 if (job->nb_hosts > platform_nb_hosts || job->walltime <= 0) {
                     mb->add_reject_job(job->id);
@@ -291,81 +329,104 @@ uint8_t batsim_edc_take_decisions(
         }
     }
 
-    if (need_scheduling) {
-    	// Calculer la puissance moyenne pour chaque hôte
-    	for (uint32_t i = 0; i < platform_nb_hosts; ++i) {
-        	double average_host_power = per_host_distributions[i].calculate_average_power();
-        	printf("Average power for Host %u: %.2f\n", i, average_host_power);
-    	}
+  if (need_scheduling) {
+    // Calculer la puissance moyenne pour chaque tâche dans la file d'attente
+    for (auto &job : job_queue) {
+        double average_power = job->power_distribution.calculate_average_power();
+        printf("Task %s has an average power of %.2f\n", job->id.c_str(), average_power);
+    }
 
-    	// Calculer la puissance moyenne pour toutes les tâches
-    	double average_task_power = task_power_distribution.calculate_average_power();
-    	printf("Average power for all tasks: %.2f\n", average_task_power);
-        LocalJob *priority_job = nullptr;
-        uint32_t nb_available_hosts_at_priority_job_start = 0;
-        float priority_job_start_time = -1;
+    // Trier la file d'attente en fonction de la puissance moyenne des tâches
+    job_queue.sort(ascending_power_consumption_job_order);
 
-        auto job_it = job_queue.begin();
-        for (; job_it != job_queue.end();) {
-            auto job = *job_it;
-            if (job->nb_hosts <= nb_available_hosts) {
-                running_jobs[job->id] = *job_it;
-                job->maximum_finish_time = parsed->now() + job->walltime;
-                job->alloc = available_hosts.left(job->nb_hosts);
-                mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
-                available_hosts -= job->alloc;
-                nb_available_hosts -= job->nb_hosts;
+    // Variables pour gérer la tâche prioritaire
+    LocalJob *priority_job = nullptr;
+    uint32_t nb_available_hosts_at_priority_job_start = 0;
+    float priority_job_start_time = -1;
 
-                job_it = job_queue.erase(job_it);
-            } else {
-                priority_job = *job_it;
-                ++job_it;
+    // Parcourir la file d'attente triée pour allouer les ressources
+    auto job_it = job_queue.begin();
+    for (; job_it != job_queue.end();) {
+        auto job = *job_it;
 
-                std::vector<LocalJob *> running_jobs_asc_maximum_finish_time;
-                running_jobs_asc_maximum_finish_time.reserve(running_jobs.size());
-                for (const auto &it : running_jobs)
-                    running_jobs_asc_maximum_finish_time.push_back(it.second);
-                std::sort(running_jobs_asc_maximum_finish_time.begin(), running_jobs_asc_maximum_finish_time.end(), ascending_max_finish_time_job_order);
+        // Vérifier si les ressources disponibles sont suffisantes pour la tâche
+        if (job->nb_hosts <= nb_available_hosts) {
+            // Allouer les ressources à la tâche
+            running_jobs[job->id] = *job_it;
+            job->maximum_finish_time = parsed->now() + job->walltime;
+            job->alloc = available_hosts.left(job->nb_hosts);
+            mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
 
-                nb_available_hosts_at_priority_job_start = nb_available_hosts;
-                for (const auto &job : running_jobs_asc_maximum_finish_time) {
-                    nb_available_hosts_at_priority_job_start += job->nb_hosts;
-                    if (nb_available_hosts_at_priority_job_start >= priority_job->nb_hosts) {
-                        nb_available_hosts_at_priority_job_start -= priority_job->nb_hosts;
-                        priority_job_start_time = job->maximum_finish_time;
-                        break;
-                    }
+            // Mettre à jour les ressources disponibles
+            available_hosts -= job->alloc;
+            nb_available_hosts -= job->nb_hosts;
+
+            // Supprimer la tâche de la file d'attente
+            job_it = job_queue.erase(job_it);
+        } else {
+            // Si la tâche ne peut pas être exécutée maintenant, elle devient une tâche prioritaire
+            priority_job = *job_it;
+            ++job_it;
+
+            // Calculer le temps de démarrage de la tâche prioritaire
+            std::vector<LocalJob *> running_jobs_asc_maximum_finish_time;
+            running_jobs_asc_maximum_finish_time.reserve(running_jobs.size());
+            for (const auto &it : running_jobs)
+                running_jobs_asc_maximum_finish_time.push_back(it.second);
+
+            // Trier les tâches en cours d'exécution par ordre croissant de temps de fin
+            std::sort(running_jobs_asc_maximum_finish_time.begin(), running_jobs_asc_maximum_finish_time.end(), ascending_max_finish_time_job_order);
+
+            // Calculer les ressources disponibles au moment où la tâche prioritaire pourra démarrer
+            nb_available_hosts_at_priority_job_start = nb_available_hosts;
+            for (const auto &job : running_jobs_asc_maximum_finish_time) {
+                nb_available_hosts_at_priority_job_start += job->nb_hosts;
+                if (nb_available_hosts_at_priority_job_start >= priority_job->nb_hosts) {
+                    nb_available_hosts_at_priority_job_start -= priority_job->nb_hosts;
+                    priority_job_start_time = job->maximum_finish_time;
+                    break;
                 }
-
-                break;
             }
-        }
 
-        // Continue traversal to backfill jobs
-        for (; job_it != job_queue.end(); ) {
-            auto job = *job_it;
-            // should the job be backfilled?
-            float job_finish_time = parsed->now() + job->walltime;
-            if (job->nb_hosts <= nb_available_hosts && // enough resources now?
-                (job->nb_hosts <= nb_available_hosts_at_priority_job_start || job_finish_time <= priority_job_start_time)) {  // does not directly hinder the priority job?
-                running_jobs[job->id] = *job_it;
-                job->maximum_finish_time = job_finish_time;
-                job->alloc = available_hosts.left(job->nb_hosts);
-                mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
-                available_hosts -= job->alloc;
-                nb_available_hosts -= job->nb_hosts;
-
-                if (job_finish_time > priority_job_start_time)
-                    nb_available_hosts_at_priority_job_start -= job->nb_hosts;
-
-                job_it = job_queue.erase(job_it);
-            }
-            else if (nb_available_hosts == 0)
-                break;
-            else
-                ++job_it;
+            break;
         }
     }
+
+    // Gestion des tâches backfill
+    for (; job_it != job_queue.end(); ) {
+        auto job = *job_it;
+
+        // Vérifier si la tâche peut être backfillée
+        float job_finish_time = parsed->now() + job->walltime;
+        if (job->nb_hosts <= nb_available_hosts && // assez de ressources maintenant ?
+            (job->nb_hosts <= nb_available_hosts_at_priority_job_start || job_finish_time <= priority_job_start_time)) {  // ne retarde pas la tâche prioritaire ?
+            // Allouer les ressources à la tâche backfill
+            running_jobs[job->id] = *job_it;
+            job->maximum_finish_time = job_finish_time;
+            job->alloc = available_hosts.left(job->nb_hosts);
+            mb->add_execute_job(job->id, job->alloc.to_string_hyphen());
+
+            // Mettre à jour les ressources disponibles
+            available_hosts -= job->alloc;
+            nb_available_hosts -= job->nb_hosts;
+
+            // Si la tâche backfill termine après le démarrage de la tâche prioritaire, ajuster les ressources disponibles
+            if (job_finish_time > priority_job_start_time)
+                nb_available_hosts_at_priority_job_start -= job->nb_hosts;
+
+            // Supprimer la tâche de la file d'attente
+            job_it = job_queue.erase(job_it);
+        }
+        else if (nb_available_hosts == 0) {
+            // Si aucune ressource n'est disponible, arrêter le backfill
+            break;
+        }
+        else {
+            // Passer à la tâche suivante dans la file d'attente
+            ++job_it;
+        }
+    }
+}
 
     if (probes_running && job_queue.empty() && running_jobs.empty()) {
         mb->add_stop_probe("hosts-vec");
