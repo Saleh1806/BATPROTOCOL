@@ -1,0 +1,60 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd">
+<platform version="4.1">
+  <zone id="AS0" routing="Full">
+
+    <!-- Host LowPower : Hôte basse consommation, sans états de veille -->
+    <host id="LowPower" speed="50.0Mf">
+      <!-- Un seul état de calcul → 1 profil -->
+      <prop id="wattage_per_state" value="40.0:60.0" />
+      <prop id="wattage_off" value="5.0" />
+    </host>
+
+    <!-- Host MediumPower : Hôte classique, sans sleep_pstates -->
+    <host id="MediumPower" speed="100.0Mf">
+      <!-- Un seul état de calcul → 1 profil -->
+      <prop id="wattage_per_state" value="100.0:200.0" />
+      <prop id="wattage_off" value="10.0" />
+    </host>
+
+    <!-- Host HighPower : Hôte puissant inspiré de Mercury, avec sleep_pstates -->
+    <host id="HighPower" speed="150.0Mf,75.0Mf,30.0Mf,1e-9Mf,0.008f,0.2f" pstate="0">
+      <!-- 6 valeurs dans speed → avec sleep_pstates, SimGrid attend 6+1 = 7 profils -->
+      <prop id="wattage_per_state" value="200.0:350.0,190.0:330.0,180.0:310.0,20.0:20.0,210.0:210.0,205.0:205.0,20.0:20.0" />
+      <prop id="wattage_off" value="20.0" />
+      <prop id="sleep_pstates" value="3:4:5" />
+    </host>
+
+    <!-- Host Master : Hôte maître inspiré de Venus, avec sleep_pstates -->
+    <host id="Master" speed="200.0Mf,100.0Mf,50.0Mf,1e-9Mf,0.007f,0.15f,1e-9Mf" pstate="0">
+      <!-- 7 valeurs dans speed → avec sleep_pstates, SimGrid attend 7+1 = 8 profils -->
+      <prop id="wattage_per_state" value="300.0:500.0,290.0:480.0,280.0:460.0,30.0:30.0,320.0:320.0,310.0:310.0,30.0:30.0,30.0:30.0" />
+      <prop id="wattage_off" value="30.0" />
+      <!-- Définition du rôle master -->
+      <prop id="role" value="master" />
+      <prop id="sleep_pstates" value="3:4:5" />
+    </host>
+
+    <!-- Lien loopback pour la connectivité locale -->
+    <link id="loopback" bandwidth="498MBps" latency="15us" sharing_policy="FATPIPE"/>
+
+    <!-- Lien par défaut pour la connectivité inter-hôtes -->
+    <link id="default" bandwidth="125MBps" latency="50us"/>
+
+    <!-- Routes loopback pour chaque hôte -->
+    <route src="LowPower" dst="LowPower"><link_ctn id="loopback"/></route>
+    <route src="MediumPower" dst="MediumPower"><link_ctn id="loopback"/></route>
+    <route src="HighPower" dst="HighPower"><link_ctn id="loopback"/></route>
+    <route src="Master" dst="Master"><link_ctn id="loopback"/></route>
+
+    <!-- Routes interconnectées (connectivité complète) -->
+    <route src="LowPower" dst="MediumPower"><link_ctn id="default"/></route>
+    <route src="LowPower" dst="HighPower"><link_ctn id="default"/></route>
+    <route src="LowPower" dst="Master"><link_ctn id="default"/></route>
+    <route src="MediumPower" dst="HighPower"><link_ctn id="default"/></route>
+    <route src="MediumPower" dst="Master"><link_ctn id="default"/></route>
+    <route src="HighPower" dst="Master"><link_ctn id="default"/></route>
+
+  </zone>
+</platform>
+

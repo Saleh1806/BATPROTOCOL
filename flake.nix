@@ -89,6 +89,8 @@
               pkgs.python3Packages.pytest
               pkgs.python3Packages.pytest-html
               pkgs.python3Packages.matplotlib
+              pkgs.python3Packages.seaborn
+              kapack.evalys
               pkgs.gdb
               pkgs.cgdb
             ];

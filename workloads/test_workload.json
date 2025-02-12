@@ -1,0 +1,33 @@
+{
+  "nb_res": 4,
+  "jobs": [
+    { "id": 1,  "subtime": 0,   "walltime": 100, "res": 2, "profile": "hg_20" },
+    { "id": 2,  "subtime": 10,  "walltime": 100, "res": 1, "profile": "hg_40" },
+    { "id": 3,  "subtime": 20,  "walltime": 100, "res": 2, "profile": "hg_20" },
+    { "id": 4,  "subtime": 35,  "walltime": 80,  "res": 1, "profile": "hg_10" },
+    { "id": 5,  "subtime": 50,  "walltime": 200, "res": 2, "profile": "hg_20" },
+    { "id": 6,  "subtime": 65,  "walltime": 100, "res": 1, "profile": "hg_40" },
+    { "id": 7,  "subtime": 80,  "walltime": 90,  "res": 2, "profile": "hg_10" },
+    { "id": 8,  "subtime": 95,  "walltime": 110, "res": 2, "profile": "hg_20" },
+    { "id": 9,  "subtime": 110, "walltime": 130, "res": 1, "profile": "hg_40" },
+    { "id": 10, "subtime": 125, "walltime": 140, "res": 2, "profile": "hg_10" }
+  ],
+  "profiles": {
+    "hg_10": {
+      "type": "ptask_homogeneous",
+      "cpu": 1e10,
+      "com": 0
+    },
+    "hg_20": {
+      "type": "ptask_homogeneous",
+      "cpu": 1e10,
+      "com": 0
+    },
+    "hg_40": {
+      "type": "ptask_homogeneous",
+      "cpu": 1e10,
+      "com": 0
+    }
+  }
+}
+

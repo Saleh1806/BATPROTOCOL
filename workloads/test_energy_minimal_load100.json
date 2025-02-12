@@ -10,7 +10,7 @@
     "nb_res": 2,
     "jobs": [
         {"id":0, "subtime":0, "walltime": 1000, "res": 2, "profile": "ptask_prof"},
-        {"id":1, "subtime":100, "walltime": 1000, "res": 2, "profile": "ptask_prof"}
+        {"id":1, "subtime":10, "walltime": 10000, "res": 2, "profile": "ptask_prof"}
     ],
 
     "profiles": {
