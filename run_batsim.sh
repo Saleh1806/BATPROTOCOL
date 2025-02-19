@@ -13,13 +13,9 @@ WORKLOAD_FILE="./workloads/$2"
 
 # Définir les variables nécessaires
 LIBRARY_PATH="$EDC_LD_LIBRARY_PATH/libstatistic-easy.so"
-<<<<<<< Updated upstream
-EXPE_OUT_DIR="/tmp/expe-out/out"
-OUTPUT_CSV="energy_data.csv"  # Fichier généré par Batsim
-PYTHON_SCRIPT="histogramme.py"
-=======
 EXPE_OUT_DIR="/tmp/expe-out/statistic"
->>>>>>> Stashed changes
+OUTPUT_CSV="energy_data.csv"      # Fichier généré par Batsim (optionnel selon vos besoins)
+PYTHON_SCRIPT="histogramme.py"    # Script Python pour analyse (optionnel selon vos besoins)
 
 # Vérifier l'existence des fichiers
 if [ ! -f "$PLATFORM_FILE" ]; then
@@ -50,3 +46,6 @@ fi
 
 echo "Exécution terminée avec succès."
 
+# Exemple si vous souhaitez ensuite traiter des données de sortie :
+# echo "Traitement des résultats dans $EXPE_OUT_DIR..."
+# <votre code pour générer un histogramme, par exemple en appelant $PYTHON_SCRIPT> 
