@@ -1,0 +1,52 @@
+<?xml version='1.0'?>
+<!DOCTYPE platform SYSTEM "http://simgrid.gforge.inria.fr/simgrid/simgrid.dtd">
+<platform version="4.1">
+    <zone id="AS0" routing="Full">
+        <!-- Hôte master avec vitesse identique et consommation spécifique -->
+        <host id="master_host" speed="100Mf">
+            <prop id="wattage_per_state" value="120:200" />
+            <prop id="wattage_off" value="10" />
+        </host>
+        
+        <!-- Hôtes avec vitesse identique (100Mf) mais consommation électrique différente -->
+        <host id="Alpha" speed="100Mf" pstate="0">
+            <prop id="wattage_per_state" value="130:230" />
+            <prop id="wattage_off" value="10" />
+        </host>
+        <host id="Beta" speed="100Mf" pstate="0">
+            <prop id="wattage_per_state" value="140:270" />
+            <prop id="wattage_off" value="10" />
+        </host>
+        <host id="Gamma" speed="100Mf" pstate="0">
+            <prop id="wattage_per_state" value="150:250" />
+            <prop id="wattage_off" value="10" />
+        </host>
+        <host id="Mars" speed="100Mf" pstate="0">
+            <prop id="wattage_per_state" value="160:280" />
+            <prop id="wattage_off" value="10" />
+        </host>
+        
+        <!-- Définition des liens et routages -->
+        <link id="loopback" bandwidth="500MBps" latency="10us" sharing_policy="FATPIPE"/>
+        <link id="interconnect" bandwidth="50MBps" latency="100us"/>
+        
+        <route src="Alpha" dst="Beta">
+            <link_ctn id="interconnect"/>
+        </route>
+        <route src="Alpha" dst="Gamma">
+            <link_ctn id="interconnect"/>
+        </route>
+        <route src="Alpha" dst="Mars">
+            <link_ctn id="interconnect"/>
+        </route>
+        <route src="Beta" dst="Gamma">
+            <link_ctn id="interconnect"/>
+        </route>
+        <route src="Beta" dst="Mars">
+            <link_ctn id="interconnect"/>
+        </route>
+        <route src="Gamma" dst="Mars">
+            <link_ctn id="interconnect"/>
+        </route>
+    </zone>
+</platform>
