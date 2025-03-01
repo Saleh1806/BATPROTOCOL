@@ -97,10 +97,10 @@ nix develop .#external-test
 Simulation De easybackfilling
 =============================
 
-./run_batsim_2.sh platform_project_3.xml test_workload_3.json
-./run-visualization.sh
+- ./run_batsim_2.sh platform_project_3.xml test_workload_3.json
+- ./run-visualization.sh
 
 Simulation De notre code
 =============================
-./run_batsim.sh platform_project_3.xml test_workload_3.json
-./run-visualization-stat.sh
+- ./run_batsim.sh platform_project_3.xml test_workload_3.json
+- ./run-visualization-stat.sh
