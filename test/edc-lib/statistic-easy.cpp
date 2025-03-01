@@ -441,7 +441,7 @@ uint8_t batsim_edc_take_decisions(
     }
     //tache=tache+1; 
     //if (probes_running && job_queue.empty() && running_jobs.empty()) 
-    if (probes_running && tache >=10){
+    if (probes_running && tache >=200){
         //printf("[ERROR] Arrêt prématuré des probes alors que des jobs devraient être exécutés !\n");
         mb->add_stop_probe("hosts-vec");
         mb->add_stop_probe("hosts-agg");
