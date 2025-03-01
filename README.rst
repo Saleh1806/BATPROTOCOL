@@ -88,3 +88,19 @@ Please refer to `Batsim's documentation`_ for more.
     :alt: Docker Image Size
     :scale: 100%
     :target: https://hub.docker.com/r/oarteam/batsim/tags?page=1&ordering=last_updated
+
+
+Simulations:
+===========
+nix develop .#external-test
+
+Simulation De easybackfilling
+=============================
+
+./run_batsim_2.sh platform_project_3.xml test_workload_3.json
+./run-visualization.sh
+
+Simulation De notre code
+=============================
+./run_batsim.sh platform_project_3.xml test_workload_3.json
+./run-visualization-stat.sh
